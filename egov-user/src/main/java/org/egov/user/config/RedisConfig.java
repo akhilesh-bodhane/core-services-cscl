@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
@@ -15,7 +16,7 @@ public class RedisConfig {
 
     /**
      * RedisTemplate for String-Long operations (used for activity timestamps).
-     * Serializes keys and values as strings.
+     * Keys are serialized as strings, values use JSON serialization to handle Long types.
      */
     @Bean
     public RedisTemplate<String, Long> redisTemplate(RedisConnectionFactory connectionFactory) {
@@ -27,9 +28,10 @@ public class RedisConfig {
         template.setKeySerializer(stringSerializer);
         template.setHashKeySerializer(stringSerializer);
         
-        // Use default Long serializers for values
-        template.setValueSerializer(stringSerializer);
-        template.setHashValueSerializer(stringSerializer);
+        // Use JSON serializer for Long values to properly serialize/deserialize timestamps
+        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer();
+        template.setValueSerializer(jsonSerializer);
+        template.setHashValueSerializer(jsonSerializer);
         
         template.afterPropertiesSet();
         return template;
