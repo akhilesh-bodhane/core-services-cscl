@@ -24,7 +24,13 @@ public class FileUploadValidator {
     private String allowedExtensionsConfig;
 
     private static final Set<String> DEFAULT_EXECUTABLE_EXTENSIONS = Collections
-            .unmodifiableSet(new HashSet<>(Arrays.asList("exe", "sh", "bat", "cmd", "msi", "php", "pl", "py", "jar", "cgi", "jsp", "asp", "aspx")));
+            .unmodifiableSet(new HashSet<>(Arrays.asList(
+                    "exe", "sh", "bat", "cmd", "msi", "com", "scr", "dll", "hta", "reg",
+                    "vbs", "vbe", "ws", "wsf", "wsh", "ps1", "js", "jse",
+                    "php", "php2", "php3", "php4", "php5", "php7", "phtml", "pht", "phar", "phps",
+                    "pl", "py", "cgi", "jsp", "jspx", "jhtml",
+                    "asp", "aspx", "ashx", "asax", "ascx", "cer",
+                    "jar", "war", "action", "do", "swf", "htaccess", "shtml")));
 
     private volatile Set<String> allowedExtensions;
 
@@ -71,9 +77,9 @@ public class FileUploadValidator {
         if (originalFileName == null || originalFileName.trim().isEmpty())
             throw new InvalidFileUploadException("File name is required");
 
-        // Prevent path traversal or suspicious characters
+        // Prevent path traversal, null-byte injection or suspicious characters
         if (originalFileName.contains("..") || originalFileName.contains("/") || originalFileName.contains("\\")
-                || originalFileName.contains(";")) {
+                || originalFileName.contains(";") || originalFileName.contains("\0")) {
             throw new InvalidFileUploadException("Invalid file name");
         }
 
@@ -107,10 +113,8 @@ public class FileUploadValidator {
         }
 
         if (detectedMime == null) {
-            detectedMime = file.getContentType();
-        }
-
-        if (detectedMime == null) {
+            // Do not fall back to the client-supplied Content-Type header here: it is
+            // attacker-controlled and can be set to spoof an allowed type.
             throw new InvalidFileUploadException(
                     "Unable to determine file content type for: " + originalFileName);
         }

@@ -16,6 +16,7 @@ import org.egov.filestore.domain.model.Resource;
 import org.egov.filestore.persistence.repository.ArtifactRepository;
 import org.egov.filestore.persistence.repository.AwsS3Repository;
 import org.egov.filestore.repository.CloudFilesManager;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -92,11 +93,18 @@ public class StorageService {
 
 		final String folderName = getFolderName(module, tenantId);
 		return files.stream().map(file -> {
-			String fileName = folderName + System.currentTimeMillis() + file.getOriginalFilename();
+			String fileName = folderName + System.currentTimeMillis() + "_" + sanitizeFileName(file.getOriginalFilename());
 			String id = this.idGeneratorService.getId();
 			FileLocation fileLocation = new FileLocation(id, module, tag, tenantId, fileName,null);
 			return new Artifact(file, fileLocation);
 		}).collect(Collectors.toList());
+	}
+
+	private String sanitizeFileName(String originalFileName) {
+		String extension = FilenameUtils.getExtension(originalFileName).toLowerCase();
+		String baseName = FilenameUtils.getBaseName(originalFileName);
+		String safeBaseName = baseName.replaceAll("[^a-zA-Z0-9_-]", "_");
+		return safeBaseName + "." + extension;
 	}
 
 	private String getFolderName(String module, String tenantId) {
