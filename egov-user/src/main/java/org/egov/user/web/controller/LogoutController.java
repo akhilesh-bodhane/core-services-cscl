@@ -36,7 +36,9 @@ public class LogoutController {
 	@PostMapping("/_logout")
 	public ResponseInfo deleteToken(@RequestParam("access_token") String accessToken) throws Exception {
 		OAuth2AccessToken redisToken = tokenStore.readAccessToken(accessToken);
-		tokenStore.removeAccessToken(redisToken);
+		if (redisToken != null) {
+			tokenStore.removeAccessToken(redisToken);
+		}
 		idleSessionManager.removeActivity(accessToken);
 		return new ResponseInfo("", "", new Date().toString(), "", "", "Logout successfully");
 	}

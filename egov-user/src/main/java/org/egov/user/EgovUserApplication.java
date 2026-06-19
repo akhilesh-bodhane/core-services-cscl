@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import redis.clients.jedis.JedisPoolConfig;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -96,7 +97,17 @@ public class EgovUserApplication {
 
 	@Bean
 	public JedisConnectionFactory connectionFactory() {
-		return new JedisConnectionFactory(new JedisShardInfo(host));
+		JedisPoolConfig poolConfig = new JedisPoolConfig();
+		poolConfig.setMaxTotal(32);
+		poolConfig.setMaxIdle(16);
+		poolConfig.setMinIdle(4);
+		poolConfig.setMaxWaitMillis(3000);
+		poolConfig.setTestOnBorrow(true);
+
+		JedisConnectionFactory factory = new JedisConnectionFactory(new JedisShardInfo(host));
+		factory.setPoolConfig(poolConfig);
+		factory.setTimeout(2000);
+		return factory;
 	}
 
 	public static void main(String[] args) {

@@ -99,6 +99,7 @@ public class IdleSessionFilter extends OncePerRequestFilter {
         return path.contains("/oauth/token") ||
                path.contains("/user/citizen/_create") ||
                path.contains("/user/_login") ||
+               path.contains("/_logout") ||
                path.contains("/actuator") ||
                path.contains("/health");
     }
