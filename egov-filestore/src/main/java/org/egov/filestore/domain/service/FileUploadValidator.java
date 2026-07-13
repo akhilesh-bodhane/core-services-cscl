@@ -2,7 +2,6 @@ package org.egov.filestore.domain.service;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -11,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.tika.Tika;
 import org.egov.filestore.domain.exception.InvalidFileUploadException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -18,6 +18,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Component
 public class FileUploadValidator {
+
+    // Tika performs magic-byte content sniffing; thread-safe, safe to share as a single instance.
+    private static final Tika TIKA = new Tika();
 
     // configurable comma-separated list of allowed extensions (lowercase, without dot)
     @Value("${filestore.allowed.extensions:pdf,png,jpg,jpeg,txt,doc,docx,xls,xlsx,csv}")
@@ -58,9 +61,11 @@ public class FileUploadValidator {
                     extensionToMime.put("jpeg", Collections.singleton("image/jpeg"));
                     extensionToMime.put("txt", Collections.singleton("text/plain"));
                     extensionToMime.put("csv", Collections.singleton("text/csv"));
-                    extensionToMime.put("doc", Collections.singleton("application/msword"));
+                    // doc/xls are OLE2-container formats; Tika reports the generic MS Office
+                    // container type for both rather than distinguishing by content.
+                    extensionToMime.put("doc", Collections.singleton("application/x-tika-msoffice"));
+                    extensionToMime.put("xls", Collections.singleton("application/x-tika-msoffice"));
                     extensionToMime.put("docx", Collections.singleton("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-                    extensionToMime.put("xls", Collections.singleton("application/vnd.ms-excel"));
                     extensionToMime.put("xlsx", Collections.singleton("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
                 }
             }
@@ -104,17 +109,17 @@ public class FileUploadValidator {
             }
         }
 
-        String detectedMime = null;
+        String detectedMime;
 
         try (InputStream is = file.getInputStream()) {
-            detectedMime = URLConnection.guessContentTypeFromStream(is);
+            // Tika sniffs magic bytes rather than trusting the client-supplied Content-Type
+            // header (which is attacker-controlled and can be set to spoof an allowed type).
+            detectedMime = TIKA.detect(is, originalFileName);
         } catch (IOException e) {
             throw new InvalidFileUploadException("Unable to read file for type validation", e);
         }
 
         if (detectedMime == null) {
-            // Do not fall back to the client-supplied Content-Type header here: it is
-            // attacker-controlled and can be set to spoof an allowed type.
             throw new InvalidFileUploadException(
                     "Unable to determine file content type for: " + originalFileName);
         }
